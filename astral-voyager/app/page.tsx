@@ -1,9 +1,12 @@
 "use client";
-
 import { useState } from 'react';
 import { ethers } from 'ethers';
 import { motion, AnimatePresence } from 'framer-motion';
-
+declare global {
+    interface Window {
+        ethereum: any;
+    }
+}
 export default function Home() {
     const [wallet, setWallet] = useState<string | null>(null);
     const [identity, setIdentity] = useState<string>('');
@@ -11,7 +14,6 @@ export default function Home() {
     const [step, setStep] = useState<'connect' | 'input' | 'checking' | 'result'>('connect');
     const [result, setResult] = useState<any>(null);
     const [txStatus, setTxStatus] = useState<string>('');
-
     const connectWallet = async () => {
         if (typeof window.ethereum !== 'undefined') {
             try {
@@ -26,12 +28,10 @@ export default function Home() {
             alert("Please install Metamask");
         }
     };
-
     const checkEligibility = async () => {
         if (!wallet || !identity) return;
         setLoading(true);
         setStep('checking');
-
         try {
             const res = await fetch('/api/issue-claim', {
                 method: 'POST',
@@ -51,43 +51,33 @@ export default function Home() {
             setLoading(false);
         }
     };
-
     const addClaimToIdentity = async () => {
         if (!result?.claim || !wallet) return;
-
         try {
             setTxStatus('Initiating transaction...');
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-
             // ABI for addClaim
             const abi = [
                 "function addClaim(uint256 _topic, uint256 _scheme, address _issuer, bytes _signature, bytes _data, string _uri) external returns (bytes32)"
             ];
-
             const identityContract = new ethers.Contract(identity, abi, signer);
-
             const { topic, scheme, issuer, signature, data, uri } = result.claim;
-
             setTxStatus('Please sign in wallet...');
             const tx = await identityContract.addClaim(topic, scheme, issuer, signature, data, uri);
-
             setTxStatus(`Transaction sent! Hash: ${tx.hash}`);
             await tx.wait();
             setTxStatus('Claim successfully added to OnChainID!');
-
         } catch (err: any) {
             console.error(err);
             setTxStatus('Transaction failed: ' + (err.reason || err.message));
         }
     };
-
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-8 relative overflow-hidden">
             {/* Background Orbs */}
             <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/20 blur-[100px]" />
             <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-blue-600/20 blur-[100px]" />
-
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -98,7 +88,6 @@ export default function Home() {
                         Nomis <span className="gradient-text">Issuer</span>
                     </h1>
                     <p className="text-gray-400 mb-8">Get your OnChainID Claim based on your Reputation.</p>
-
                     <AnimatePresence mode="wait">
                         {step === 'connect' && (
                             <motion.div
@@ -112,7 +101,6 @@ export default function Home() {
                                 </button>
                             </motion.div>
                         )}
-
                         {step === 'input' && (
                             <motion.div
                                 key="input"
@@ -143,7 +131,6 @@ export default function Home() {
                                 </button>
                             </motion.div>
                         )}
-
                         {step === 'checking' && (
                             <motion.div
                                 key="checking"
@@ -156,7 +143,6 @@ export default function Home() {
                                 <p className="text-indigo-300">Analyzing on-chain reputation...</p>
                             </motion.div>
                         )}
-
                         {step === 'result' && result && (
                             <motion.div
                                 key="result"
@@ -173,7 +159,6 @@ export default function Home() {
                                         {result.eligible ? 'Eligibility Confirmed' : 'Score too low for claim'}
                                     </div>
                                 </div>
-
                                 {result.eligible && (
                                     <div>
                                         <button onClick={addClaimToIdentity} className="primary-button w-full mb-4">
@@ -186,7 +171,6 @@ export default function Home() {
                                         )}
                                     </div>
                                 )}
-
                                 <button onClick={() => setStep('input')} className="text-sm text-gray-500 hover:text-white transition-colors">
                                     Check another ID
                                 </button>
