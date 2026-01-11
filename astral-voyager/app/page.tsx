@@ -18,6 +18,29 @@ export default function Home() {
         if (typeof window.ethereum !== 'undefined') {
             try {
                 const provider = new ethers.BrowserProvider(window.ethereum);
+                // Force Switch to Polygon Amoy (0x13882)
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x13882' }],
+                    });
+                } catch (switchError: any) {
+                    // This error code indicates that the chain has not been added to MetaMask.
+                    if (switchError.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainId: '0x13882',
+                                    chainName: 'Polygon Amoy Testnet',
+                                    nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                                    rpcUrls: ['https://rpc-amoy.polygon.technology/'],
+                                    blockExplorerUrls: ['https://www.oklink.com/amoy'],
+                                },
+                            ],
+                        });
+                    }
+                }
                 const accounts = await provider.send("eth_requestAccounts", []);
                 setWallet(accounts[0]);
                 setStep('input');
@@ -196,4 +219,3 @@ export default function Home() {
         </main>
     );
 }
-
