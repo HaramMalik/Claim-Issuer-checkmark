@@ -57,14 +57,28 @@ export default function Home() {
             setTxStatus('Initiating transaction...');
             const provider = new ethers.BrowserProvider(window.ethereum);
             const signer = await provider.getSigner();
-            // ABI for addClaim
+            // ABI for Identity (execute + addClaim)
+            // We need to encode the call to addClaim, then pass it to execute
             const abi = [
-                "function addClaim(uint256 _topic, uint256 _scheme, address _issuer, bytes _signature, bytes _data, string _uri) external returns (bytes32)"
+                "function addClaim(uint256 _topic, uint256 _scheme, address _issuer, bytes _signature, bytes _data, string _uri) external returns (bytes32)",
+                "function execute(address _to, uint256 _value, bytes _data) external returns (bool, bytes)"
             ];
             const identityContract = new ethers.Contract(identity, abi, signer);
             const { topic, scheme, issuer, signature, data, uri } = result.claim;
-            setTxStatus('Please sign in wallet...');
-            const tx = await identityContract.addClaim(topic, scheme, issuer, signature, data, uri);
+            // Encode the addClaim call
+            const iface = new ethers.Interface(abi);
+            const calldata = iface.encodeFunctionData("addClaim", [
+                topic,
+                scheme,
+                issuer,
+                signature,
+                data,
+                uri
+            ]);
+            setTxStatus('Please sign in wallet (Calling execute)...');
+            // Call execute(identity, 0, addClaimData)
+            // This makes the Identity call addClaim on itself, bypassing onlyClaimKey check (if user is manager)
+            const tx = await identityContract.execute(identity, 0, calldata);
             setTxStatus(`Transaction sent! Hash: ${tx.hash}`);
             await tx.wait();
             setTxStatus('Claim successfully added to OnChainID!');
@@ -182,3 +196,4 @@ export default function Home() {
         </main>
     );
 }
+
